@@ -3,11 +3,10 @@
 #include "peripherals.h"
 
 /*
-#include <stdio.h> 
-#include <stdlib.h> 
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 For this Lab, the following are not needed and we're not used to complete the lab
-
 */
 
 /*
@@ -40,6 +39,8 @@ typedef enum {
 /* Function prototypes */
 void startTimer(void);
 void initializeButtons(void);
+void initLaunchpadLEDs(void);
+void setLaunchpadLEDs(unsigned char led1On, unsigned char led2On);
 void cycleDelay(unsigned int delay);
 unsigned char play(unsigned char currButt);
 unsigned char checkButtons(void);
@@ -69,15 +70,16 @@ volatile unsigned int score = 0;   /* Tracks successful note hits */
  * [duration0, pitch0, duration1, pitch1, ...]
  * duration units are multiplied by 10 timer ticks in this program
  *
- * The sequence was reformatted to keep each duration/pitch pair valid.
+ * Updated to include at least 8 distinct pitches:
+ * A, B, C1, CS, D, E, F, G
  */
 unsigned char noteSequence[] = {
     80, G,
     80, A,
-    80, A,
+    80, CS,
     80, G,
     80, E,
-    80, E,
+    80, F,
     80, D,
     80, D,
     80, C1,
@@ -158,6 +160,31 @@ void initializeButtons(void) {
     P2OUT |=  BIT2;
 }
 
+/* Launchpad LED1 = P1.0, Launchpad LED2 = P4.7 */
+void initLaunchpadLEDs(void) {
+    P1SEL &= ~BIT0;
+    P1DIR |= BIT0;
+    P1OUT &= ~BIT0;
+
+    P4SEL &= ~BIT7;
+    P4DIR |= BIT7;
+    P4OUT &= ~BIT7;
+}
+
+void setLaunchpadLEDs(unsigned char led1On, unsigned char led2On) {
+    if (led1On) {
+        P1OUT |= BIT0;
+    } else {
+        P1OUT &= ~BIT0;
+    }
+
+    if (led2On) {
+        P4OUT |= BIT7;
+    } else {
+        P4OUT &= ~BIT7;
+    }
+}
+
 void cycleDelay(unsigned int delay) {
     delayTimerFinished = millis + ((unsigned long)delay * 10UL);
     while (millis <= delayTimerFinished) {
@@ -169,6 +196,7 @@ void cycleDelay(unsigned int delay) {
 void resetToMenu(void) {
     BuzzerOff();
     setLeds(0);
+    setLaunchpadLEDs(0, 0);
     currPos = 0;
     didGood = 0;
     score = 0;
@@ -298,6 +326,7 @@ void gameOver(void) {
 
     BuzzerOff();
     setLeds(0);
+    setLaunchpadLEDs(0, 0);
 
     uintToStr(score, scoreBuf);
 
@@ -319,6 +348,7 @@ void winGame(void) {
 
     BuzzerOff();
     setLeds(0);
+    setLaunchpadLEDs(0, 0);
 
     uintToStr(score, scoreBuf);
 
@@ -354,37 +384,55 @@ void menuState(unsigned char currKey) {
         Graphics_flushBuffer(&g_sContext);
     }
 }
+
 void initialize(void) {
-    /* Countdown */
+    unsigned long nextTime;
+
+    /* Countdown: 3 */
     Graphics_clearDisplay(&g_sContext);
     Graphics_drawStringCentered(&g_sContext, "3", AUTO_STRING_LENGTH, 48, 48, TRANSPARENT_TEXT);
     Graphics_flushBuffer(&g_sContext);
-    setLeds(7);
-    cycleDelay(60);
+    setLaunchpadLEDs(1, 0);   /* LED1 on */
+    nextTime = millis + 1000;
+    while (millis < nextTime) {
+        /* Timer A2-based wait */
+    }
 
+    /* Countdown: 2 */
     Graphics_clearDisplay(&g_sContext);
     Graphics_drawStringCentered(&g_sContext, "2", AUTO_STRING_LENGTH, 48, 48, TRANSPARENT_TEXT);
     Graphics_flushBuffer(&g_sContext);
-    setLeds(3);
-    cycleDelay(60);
+    setLaunchpadLEDs(0, 1);   /* LED2 on */
+    nextTime = millis + 1000;
+    while (millis < nextTime) {
+        /* Timer A2-based wait */
+    }
 
+    /* Countdown: 1 */
     Graphics_clearDisplay(&g_sContext);
     Graphics_drawStringCentered(&g_sContext, "1", AUTO_STRING_LENGTH, 48, 48, TRANSPARENT_TEXT);
     Graphics_flushBuffer(&g_sContext);
-    setLeds(1);
-    cycleDelay(60);
+    setLaunchpadLEDs(1, 0);   /* LED1 on */
+    nextTime = millis + 1000;
+    while (millis < nextTime) {
+        /* Timer A2-based wait */
+    }
 
-    /* Added GO to complete the countdown display. */
+    /* Countdown: GO */
     Graphics_clearDisplay(&g_sContext);
     Graphics_drawStringCentered(&g_sContext, "GO", AUTO_STRING_LENGTH, 48, 48, TRANSPARENT_TEXT);
     Graphics_flushBuffer(&g_sContext);
-    setLeds(15);
-    cycleDelay(30);
+    setLaunchpadLEDs(1, 1);   /* both on */
+    nextTime = millis + 1000;
+    while (millis < nextTime) {
+        /* Timer A2-based wait */
+    }
 
     Graphics_clearDisplay(&g_sContext);
     Graphics_flushBuffer(&g_sContext);
+    setLaunchpadLEDs(0, 0);
 
-    /* Reset per-game state before starting playback. */
+    /* Reset per-game state before starting playback */
     currPos = 0;
     didGood = 0;
     score = 0;
@@ -406,6 +454,7 @@ int main(void) {
 
     initializeButtons();
     initLeds();
+    initLaunchpadLEDs();
     configDisplay();
     configKeypad();
 
